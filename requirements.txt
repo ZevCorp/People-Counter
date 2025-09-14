@@ -1,4 +1,7 @@
-numpy>=1.19.0
-opencv-python>=4.5.0
-pycairo>=1.20.0
-PyGObject>=3.38.0
+numpy<2.0.0
+setproctitle
+opencv-python
+pytest
+pytest-timeout
+pytest-mock
+python-dotenv
