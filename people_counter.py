@@ -22,7 +22,7 @@ import json
 import time
 import threading
 from datetime import datetime
-import argparse
+import sys
 
 from hailo_apps.hailo_app_python.core.common.buffer_utils import get_caps_from_pad, get_numpy_from_buffer
 from hailo_apps.hailo_app_python.core.gstreamer.gstreamer_app import app_callback_class
@@ -334,22 +334,8 @@ def app_callback(pad, info, user_data):
 
 def main():
     """Función principal del sistema de conteo"""
-    parser = argparse.ArgumentParser(description="Sistema de Conteo de Personas con Hailo AI")
-    parser.add_argument("--input", type=str, default="rpi", 
-                       help="Fuente de entrada: 'rpi', 'usb', archivo de video, o URL RTSP")
-    parser.add_argument("--use-frame", action="store_true", 
-                       help="Mostrar video con visualización en tiempo real")
-    parser.add_argument("--rtsp-url", type=str,
-                       help="URL RTSP completa (ej: rtsp://user:pass@ip:port/stream)")
-    
-    args = parser.parse_args()
-    
     print("🤖 Iniciando Sistema de Conteo de Personas con Hailo AI")
     print("=" * 60)
-    
-    # Configurar entrada
-    input_source = args.rtsp_url if args.rtsp_url else args.input
-    print(f"📹 Entrada de video: {input_source}")
     
     # Configurar variables de entorno
     project_root = Path(__file__).resolve().parent
@@ -358,8 +344,20 @@ def main():
     os.environ["HAILO_ENV_FILE"] = env_path_str
     
     # Crear instancia del callback personalizado
-    user_data = PersonCounterCallback(args.rtsp_url)
-    user_data.use_frame = args.use_frame
+    # Detectar si hay URL RTSP en argumentos
+    rtsp_url = None
+    for i, arg in enumerate(sys.argv):
+        if arg == "--rtsp-url" and i + 1 < len(sys.argv):
+            rtsp_url = sys.argv[i + 1]
+            # Reemplazar argumentos para que GStreamer los entienda
+            sys.argv[i] = "--input"
+            break
+    
+    user_data = PersonCounterCallback(rtsp_url)
+    
+    print(f"📹 Entrada de video: {rtsp_url if rtsp_url else 'Por defecto'}")
+    if rtsp_url:
+        print(f"🔗 Configurando entrada RTSP: {rtsp_url}")
     
     print("🚀 Iniciando detección...")
     print("📊 Estadísticas iniciales:", user_data.counter.get_stats())
@@ -369,15 +367,6 @@ def main():
     try:
         # Crear y ejecutar aplicación de detección
         app = GStreamerDetectionApp(app_callback, user_data)
-        
-        # Configurar entrada si es RTSP
-        if args.rtsp_url:
-            # La URL RTSP se puede pasar como argumento de entrada
-            import sys
-            sys.argv = [sys.argv[0], "--input", args.rtsp_url]
-            if args.use_frame:
-                sys.argv.append("--use-frame")
-        
         app.run()
         
     except KeyboardInterrupt:
