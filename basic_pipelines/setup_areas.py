@@ -86,8 +86,12 @@ def save_config():
     print(f"📏 Línea: {len(counting_line)} puntos")
 
 def main():
-    global frame_template
+    global frame_template, mode
     import numpy as np
+    import os
+    
+    # Configurar OpenCV para evitar problemas de display en Raspberry Pi
+    os.environ['QT_QPA_PLATFORM'] = 'xcb'
     
     print("🚀 Configurador de Áreas - Sistema Contador de Personas")
     print("=" * 60)
@@ -124,11 +128,12 @@ def main():
         frame_with_areas = draw_areas(frame)
         
         # Mostrar estado actual
-        status = f"Modo: {mode.upper()}"
         if mode == "polygon":
-            status += f" - Puntos: {len(polygon_points)}"
+            status = f"POLIGONO - Puntos: {len(polygon_points)}"
         elif mode == "line":
-            status += f" - Linea: {len(counting_line)}/2"
+            status = f"LINEA DE CONTEO - Puntos: {len(counting_line)}/2"
+        else:
+            status = "TERMINADO - Presiona ESC para guardar"
         
         cv2.putText(frame_with_areas, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
         
