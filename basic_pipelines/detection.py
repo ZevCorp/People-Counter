@@ -85,6 +85,17 @@ if __name__ == "__main__":
     env_file     = project_root / ".env"
     env_path_str = str(env_file)
     os.environ["HAILO_ENV_FILE"] = env_path_str
+    
+    # Hardcoded RTSP URL for people counter
+    rtsp_url = "rtsp://192.168.1.77:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif"
+    
+    # Override sys.argv to force RTSP input and enable frame usage
+    import sys
+    sys.argv = [sys.argv[0], "--input", rtsp_url, "--use-frame", "--show-fps"]
+    
+    print(f"🎥 Conectando a cámara RTSP: {rtsp_url}")
+    print("📊 Sistema de conteo de personas iniciando...")
+    
     # Create an instance of the user app callback class
     user_data = user_app_callback_class()
     app = GStreamerDetectionApp(app_callback, user_data)

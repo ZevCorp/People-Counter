@@ -38,7 +38,7 @@ Run the following script to automate the installation process:
 ./install.sh
 ```
 
-### Documentation
+### Documentation||
 For additional information and documentation on how to use the pipelines to create your own custom pipelines, see the [Basic Pipelines Documentation](doc/basic-pipelines.md).
 
 ### Running The Examples
