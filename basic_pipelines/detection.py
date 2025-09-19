@@ -6,10 +6,68 @@ import os
 import numpy as np
 import cv2
 import hailo
+import signal
+import sys
+import subprocess
+import time
+import atexit
 
 from hailo_apps.hailo_app_python.core.common.buffer_utils import get_caps_from_pad, get_numpy_from_buffer
 from hailo_apps.hailo_app_python.core.gstreamer.gstreamer_app import app_callback_class
 from hailo_apps.hailo_app_python.apps.detection.detection_pipeline import GStreamerDetectionApp
+
+# -----------------------------------------------------------------------------------------------
+# Hailo Device Cleanup Functions - Solución automática para liberación de dispositivos
+# -----------------------------------------------------------------------------------------------
+def cleanup_hailo_devices():
+    """
+    Libera automáticamente dispositivos Hailo bloqueados para evitar reiniciar la Pi
+    """
+    print("🧹 Liberando dispositivos Hailo...")
+    try:
+        # Método 1: Reset via hailortcli si está disponible
+        result = subprocess.run(['hailortcli', 'fw-control', 'reset'], 
+                               capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            print("✅ Dispositivos Hailo liberados correctamente")
+            time.sleep(2)  # Esperar a que el reset se complete
+            return True
+    except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
+        pass
+    
+    try:
+        # Método 2: Matar procesos que usen hailo
+        subprocess.run(['pkill', '-f', 'hailo'], capture_output=True)
+        subprocess.run(['pkill', '-f', 'detection'], capture_output=True)
+        time.sleep(1)
+        print("🔄 Procesos Hailo terminados")
+        return True
+    except subprocess.CalledProcessError:
+        pass
+    
+    print("⚠️  Cleanup básico aplicado")
+    return False
+
+def signal_handler(signum, frame):
+    """
+    Maneja Ctrl+C y other signals para cleanup automático
+    """
+    print(f"\n🛑 Señal {signum} recibida. Limpiando recursos...")
+    cleanup_hailo_devices()
+    sys.exit(0)
+
+def setup_cleanup():
+    """
+    Configura cleanup automático al salir y señales
+    """
+    # Registrar cleanup al salir del programa
+    atexit.register(cleanup_hailo_devices)
+    
+    # Manejar Ctrl+C y SIGTERM
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    print("🔧 Sistema de cleanup automático configurado")
 
 # -----------------------------------------------------------------------------------------------
 # Custom RTSP Detection App - Contador de Personas
@@ -133,20 +191,37 @@ if __name__ == "__main__":
     env_path_str = str(env_file)
     os.environ["HAILO_ENV_FILE"] = env_path_str
     
+    print("🚀 Iniciando Sistema de Conteo de Personas RTSP")
+    print("=" * 50)
+    
+    # 1. Configurar sistema de cleanup automático
+    setup_cleanup()
+    
+    # 2. Limpiar dispositivos Hailo al inicio (solución automática)
+    cleanup_hailo_devices()
+    
     # Hardcoded RTSP URL for people counter
     rtsp_url = "rtsp://192.168.1.77:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif"
     
     # Configure sys.argv for our custom RTSP app
-    import sys
     sys.argv = [sys.argv[0], "--use-frame", "--show-fps"]
     
     print(f"🎥 Conectando a cámara RTSP: {rtsp_url}")
     print("📊 Sistema de conteo de personas iniciando...")
     print("🚀 Usando pipeline RTSP personalizado...")
     
-    # Create an instance of the user app callback class
-    user_data = user_app_callback_class()
-    
-    # Use our custom RTSP Detection App instead of the standard one
-    app = RTSPGStreamerDetectionApp(app_callback, user_data, rtsp_url)
-    app.run()
+    try:
+        # Create an instance of the user app callback class
+        user_data = user_app_callback_class()
+        
+        # Use our custom RTSP Detection App instead of the standard one
+        app = RTSPGStreamerDetectionApp(app_callback, user_data, rtsp_url)
+        app.run()
+        
+    except KeyboardInterrupt:
+        print("\n🛑 Programa interrumpido por el usuario")
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        cleanup_hailo_devices()  # Cleanup en caso de error
+    finally:
+        print("🏁 Programa terminado")
