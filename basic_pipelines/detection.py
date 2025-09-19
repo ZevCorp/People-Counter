@@ -134,7 +134,7 @@ if __name__ == "__main__":
     os.environ["HAILO_ENV_FILE"] = env_path_str
     
     # Hardcoded RTSP URL for people counter
-    rtsp_url = "rtsp://192.168.1.77:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif"
+    rtsp_url = "rtsp://192.168.1.56:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif"
     
     # Configure sys.argv for our custom RTSP app
     import sys
