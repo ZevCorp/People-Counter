@@ -16,9 +16,11 @@ from hailo_apps.hailo_app_python.apps.detection.detection_pipeline import GStrea
 # -----------------------------------------------------------------------------------------------
 class RTSPGStreamerDetectionApp(GStreamerDetectionApp):
     def __init__(self, app_callback, user_data, rtsp_url):
-        super().__init__(app_callback, user_data)
+        # IMPORTANTE: Asignar rtsp_url ANTES de llamar al constructor padre
+        # porque el padre llama a get_pipeline_string() durante la inicialización
         self.rtsp_url = rtsp_url
         print(f"🎯 Configurando pipeline RTSP personalizado para: {rtsp_url}")
+        super().__init__(app_callback, user_data)
     
     def get_pipeline_string(self):
         """
