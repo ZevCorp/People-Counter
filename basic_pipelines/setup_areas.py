@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-🎯 Script súper simple para configurar áreas de detección y línea de conteo
+🎯 Script súper simple para configurar áreas de detección y 2 líneas de conteo
 Instrucciones:
 1. Click IZQUIERDO: Agregar puntos al polígono de detección
-2. Click DERECHO: Finalizar polígono y empezar línea de conteo
-3. Después: 2 clicks para marcar línea de entrada/salida
-4. ESC: Guardar y salir
+2. Click DERECHO: Finalizar polígono y empezar líneas de conteo
+3. Después: 2 clicks para marcar LÍNEA 1 (roja)
+4. Después: 2 clicks para marcar LÍNEA 2 (azul)
+5. ESC: Guardar y salir
 """
 import cv2
 import json
@@ -18,29 +19,37 @@ CONFIG_FILE = "counter_areas.json"
 
 # Variables globales
 polygon_points = []
-counting_line = []
-mode = "polygon"  # "polygon" -> "line" -> "done"
+counting_line_1 = []
+counting_line_2 = []
+mode = "polygon"  # "polygon" -> "line1" -> "line2" -> "done"
 frame_template = None
 
 def mouse_callback(event, x, y, flags, param):
-    global polygon_points, counting_line, mode, frame_template
+    global polygon_points, counting_line_1, counting_line_2, mode, frame_template
     
     if event == cv2.EVENT_LBUTTONDOWN:
         if mode == "polygon":
             polygon_points.append([x, y])
             print(f"📍 Punto polígono: ({x}, {y}) - Total: {len(polygon_points)}")
-        elif mode == "line":
-            counting_line.append([x, y])
-            print(f"📏 Punto línea: ({x}, {y}) - Total: {len(counting_line)}")
-            if len(counting_line) == 2:
+        elif mode == "line1":
+            counting_line_1.append([x, y])
+            print(f"📏 Punto LÍNEA 1: ({x}, {y}) - Total: {len(counting_line_1)}")
+            if len(counting_line_1) == 2:
+                mode = "line2"
+                print("✅ Línea 1 completada!")
+                print("📏 Ahora marca la LÍNEA 2 DE CONTEO (2 clicks)")
+        elif mode == "line2":
+            counting_line_2.append([x, y])
+            print(f"📏 Punto LÍNEA 2: ({x}, {y}) - Total: {len(counting_line_2)}")
+            if len(counting_line_2) == 2:
                 mode = "done"
-                print("✅ Configuración completada! Presiona ESC para guardar")
+                print("✅ ¡Configuración completada! Presiona ESC para guardar")
     
     elif event == cv2.EVENT_RBUTTONDOWN and mode == "polygon":
         if len(polygon_points) >= 3:
-            mode = "line"
+            mode = "line1"
             print(f"✅ Polígono terminado con {len(polygon_points)} puntos")
-            print("📏 Ahora marca la LÍNEA DE CONTEO (2 clicks)")
+            print("📏 Ahora marca la LÍNEA 1 DE CONTEO (2 clicks)")
         else:
             print("❌ Necesitas al menos 3 puntos para el polígono")
 
@@ -58,13 +67,21 @@ def draw_areas(frame):
             cv2.circle(frame, tuple(point), 5, (0, 255, 0), -1)
             cv2.putText(frame, str(i+1), (point[0]+10, point[1]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     
-    # Dibujar línea de conteo
-    if len(counting_line) == 2:
-        cv2.line(frame, tuple(counting_line[0]), tuple(counting_line[1]), (0, 0, 255), 3)
-        cv2.putText(frame, "LINEA CONTEO", (counting_line[0][0], counting_line[0][1]-10), 
+    # Dibujar línea de conteo 1 (Rojo)
+    if len(counting_line_1) == 2:
+        cv2.line(frame, tuple(counting_line_1[0]), tuple(counting_line_1[1]), (0, 0, 255), 3)
+        cv2.putText(frame, "LINEA 1", (counting_line_1[0][0], counting_line_1[0][1]-10), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-    elif len(counting_line) == 1:
-        cv2.circle(frame, tuple(counting_line[0]), 5, (0, 0, 255), -1)
+    elif len(counting_line_1) == 1:
+        cv2.circle(frame, tuple(counting_line_1[0]), 5, (0, 0, 255), -1)
+    
+    # Dibujar línea de conteo 2 (Azul)
+    if len(counting_line_2) == 2:
+        cv2.line(frame, tuple(counting_line_2[0]), tuple(counting_line_2[1]), (255, 0, 0), 3)
+        cv2.putText(frame, "LINEA 2", (counting_line_2[0][0], counting_line_2[0][1]-10), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+    elif len(counting_line_2) == 1:
+        cv2.circle(frame, tuple(counting_line_2[0]), 5, (255, 0, 0), -1)
     
     # Blend overlay
     if len(polygon_points) >= 3:
@@ -76,7 +93,8 @@ def save_config():
     """Guarda la configuración en archivo JSON"""
     config = {
         "detection_polygon": polygon_points,
-        "counting_line": counting_line,
+        "counting_line_1": counting_line_1,
+        "counting_line_2": counting_line_2,
         "rtsp_url": RTSP_URL
     }
     
@@ -85,7 +103,8 @@ def save_config():
     
     print(f"💾 Configuración guardada en {CONFIG_FILE}")
     print(f"📐 Polígono: {len(polygon_points)} puntos")
-    print(f"📏 Línea: {len(counting_line)} puntos")
+    print(f"📏 Línea 1: {len(counting_line_1)} puntos")
+    print(f"📏 Línea 2: {len(counting_line_2)} puntos")
 
 def main():
     global frame_template, mode
@@ -98,7 +117,8 @@ def main():
     print("📝 INSTRUCCIONES:")
     print("   • Click IZQUIERDO: Agregar punto al polígono")
     print("   • Click DERECHO: Finalizar polígono")
-    print("   • Después: 2 clicks para línea de conteo")
+    print("   • Después: 2 clicks para LÍNEA 1 (roja)")
+    print("   • Después: 2 clicks para LÍNEA 2 (azul)")
     print("   • ESC: Guardar y salir")
     print("=" * 60)
     
@@ -130,8 +150,10 @@ def main():
         # Mostrar estado actual
         if mode == "polygon":
             status = f"POLIGONO - Puntos: {len(polygon_points)}"
-        elif mode == "line":
-            status = f"LINEA DE CONTEO - Puntos: {len(counting_line)}/2"
+        elif mode == "line1":
+            status = f"LINEA 1 (ROJA) - Puntos: {len(counting_line_1)}/2"
+        elif mode == "line2":
+            status = f"LINEA 2 (AZUL) - Puntos: {len(counting_line_2)}/2"
         else:
             status = "TERMINADO - Presiona ESC para guardar"
         
@@ -148,7 +170,8 @@ def main():
                 print("⚠️  Completa la configuración antes de salir")
         elif key == ord('c'):  # Clear
             polygon_points.clear()
-            counting_line.clear()
+            counting_line_1.clear()
+            counting_line_2.clear()
             mode = "polygon"
             print("🧹 Configuración limpiada")
     
