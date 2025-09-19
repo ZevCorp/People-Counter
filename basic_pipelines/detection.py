@@ -27,36 +27,56 @@ class RTSPGStreamerDetectionApp(GStreamerDetectionApp):
         """
         Custom pipeline que usa rtspsrc en lugar de filesrc para RTSP streams
         """
-        # Construcción del pipeline personalizado para RTSP
-        rtsp_source = f"rtspsrc location=\"{self.rtsp_url}\" protocols=tcp ! decodebin"
+        print(f"🔧 Construyendo pipeline RTSP personalizado...")
         
-        # Usar los mismos pipelines de la clase padre para el resto del procesamiento
+        # Obtener el pipeline padre completo
         parent_pipeline = super().get_pipeline_string()
+        print(f"🔍 Pipeline padre obtenido: {parent_pipeline[:100]}...")
         
-        # Reemplazar la parte de filesrc con nuestro rtspsrc
-        # Encontrar donde termina la fuente original
-        source_end = parent_pipeline.find('caps="video/x-raw, framerate=30/1"')
-        if source_end != -1:
-            # Tomar solo la parte después de la fuente original
-            rest_of_pipeline = parent_pipeline[source_end + len('caps="video/x-raw, framerate=30/1"'):]
+        # Construir pipeline RTSP desde cero, manteniendo la estructura del padre
+        # pero reemplazando la fuente
+        rtsp_pipeline = (
+            f'rtspsrc location="{self.rtsp_url}" protocols=tcp latency=300 '
+            f'! rtph264depay '
+            f'! h264parse '
+            f'! avdec_h264 '
+            f'! queue name=source_queue_decode leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! videoscale name=source_videoscale n-threads=2 '
+            f'! queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! videoconvert n-threads=3 name=source_convert qos=false '
+            f'! video/x-raw, pixel-aspect-ratio=1/1, format=RGB, width=1280, height=720 '
+            f'! videorate name=source_videorate '
+            f'! capsfilter name=source_fps_caps caps="video/x-raw, framerate=30/1" '
+        )
+        
+        # Encontrar donde empieza la parte de inferencia en el pipeline padre
+        inference_start = parent_pipeline.find('! queue name=inference_wrapper_input_q')
+        
+        if inference_start != -1:
+            # Tomar la parte de inferencia del pipeline padre
+            inference_pipeline = parent_pipeline[inference_start:]
             
-            # Construir el pipeline completo con RTSP
-            custom_pipeline = (
-                f'{rtsp_source} ! '
-                f'queue name=source_queue_decode leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
-                f'videoscale name=source_videoscale n-threads=2 ! '
-                f'queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
-                f'videoconvert n-threads=3 name=source_convert qos=false ! '
-                f'video/x-raw, pixel-aspect-ratio=1/1, format=RGB, width=1280, height=720 ! '
-                f'videorate name=source_videorate ! '
-                f'capsfilter name=source_fps_caps caps="video/x-raw, framerate=30/1" '
-                f'{rest_of_pipeline}'
-            )
+            # Combinar RTSP + inferencia
+            complete_pipeline = rtsp_pipeline + inference_pipeline
             
-            print("🔧 Pipeline RTSP configurado correctamente")
-            return custom_pipeline
+            print("✅ Pipeline RTSP configurado exitosamente")
+            print(f"🎯 Pipeline completo: {complete_pipeline[:150]}...")
+            return complete_pipeline
         else:
-            print("⚠️  Fallback al pipeline original")
+            print("⚠️  No se pudo encontrar punto de inferencia, usando fallback")
+            print("🔧 Intentando método alternativo...")
+            
+            # Método alternativo: reemplazar directamente la fuente
+            if 'filesrc' in parent_pipeline:
+                # Encontrar el final de la sección de fuente
+                decode_end = parent_pipeline.find('! queue name=source_scale_q')
+                if decode_end != -1:
+                    rest_pipeline = parent_pipeline[decode_end:]
+                    alternative_pipeline = rtsp_pipeline + rest_pipeline
+                    print("✅ Pipeline alternativo RTSP configurado")
+                    return alternative_pipeline
+            
+            print("❌ Fallback al pipeline original")
             return parent_pipeline
 
 # -----------------------------------------------------------------------------------------------
