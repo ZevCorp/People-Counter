@@ -96,6 +96,8 @@ class user_app_callback_class(app_callback_class):
                 
                 print(f"🎯 ROI optimizado cargado: {len(self.detection_polygon)} puntos")
                 print(f"📐 Bounding rect: x={x}, y={y}, w={w}, h={h}")
+                print(f"🔍 Primeros 3 puntos del polígono: {self.detection_polygon[:3]}")
+                print(f"🔍 Últimos 3 puntos del polígono: {self.detection_polygon[-3:]}")
                 
             else:
                 print("⚠️  Archivo counter_areas.json no encontrado, usando frame completo")
@@ -154,6 +156,11 @@ def app_callback(pad, info, user_data):
     if user_data.use_frame and format is not None and width is not None and height is not None:
         # Get video frame
         frame = get_numpy_from_buffer(buffer, format, width, height)
+        
+        # DEBUG: Info del frame cada 30 frames para no saturar logs
+        if user_data.get_count() % 30 == 0:
+            print(f"🔍 Frame info: {frame.shape if frame is not None else 'None'}, format: {format}, w: {width}, h: {height}")
+            print(f"🔍 Polígono cargado: {len(user_data.detection_polygon)} puntos")
 
     # Get the detections from the buffer
     roi = hailo.get_roi_from_buffer(buffer)
@@ -172,6 +179,13 @@ def app_callback(pad, info, user_data):
         if label == "person":
             total_persons += 1
             
+            # DEBUG: Info de detecciones cada cierto tiempo
+            center_x = int(bbox.xmin() + (bbox.width() / 2))
+            center_y = int(bbox.ymin() + (bbox.height() / 2))
+            
+            if user_data.get_count() % 30 == 0:  # Debug cada 30 frames
+                string_to_print += (f"🔍 Persona detectada en: ({center_x}, {center_y}), bbox: {bbox.xmin():.0f},{bbox.ymin():.0f},{bbox.width():.0f},{bbox.height():.0f}\n")
+            
             # ROI OPTIMIZATION: Solo procesar si está dentro del polígono
             if user_data.is_detection_in_roi(bbox):
                 # Get track ID
@@ -184,7 +198,8 @@ def app_callback(pad, info, user_data):
                 roi_detection_count += 1
             else:
                 # Persona detectada pero fuera del ROI (filtrada para ahorrar recursos)
-                pass
+                if user_data.get_count() % 30 == 0:  # Debug cada 30 frames
+                    string_to_print += (f"🔍 Persona FUERA del ROI en: ({center_x}, {center_y})\n")
     
     detection_count = roi_detection_count
     
@@ -197,16 +212,26 @@ def app_callback(pad, info, user_data):
         
         # Visualización del ROI - Dibujar polígono de detección
         if len(user_data.detection_polygon) > 0:
+            # DEBUG: Verificar dimensiones cada 30 frames
+            if user_data.get_count() % 30 == 0:
+                print(f"🔍 Dibujando polígono en frame shape: {frame.shape}")
+                print(f"🔍 Rango polígono X: {user_data.detection_polygon[:, 0].min()}-{user_data.detection_polygon[:, 0].max()}")
+                print(f"🔍 Rango polígono Y: {user_data.detection_polygon[:, 1].min()}-{user_data.detection_polygon[:, 1].max()}")
+            
             # Dibujar polígono con líneas semi-transparentes
             overlay = frame.copy()
             cv2.fillPoly(overlay, [user_data.detection_polygon], (0, 255, 255))  # Amarillo
             cv2.addWeighted(overlay, 0.1, frame, 0.9, 0, frame)  # Transparencia 10%
             
-            # Contorno del polígono
-            cv2.polylines(frame, [user_data.detection_polygon], True, (0, 255, 255), 2)  # Amarillo
+            # Contorno del polígono más visible
+            cv2.polylines(frame, [user_data.detection_polygon], True, (0, 255, 255), 3)  # Amarillo, línea más gruesa
             
             # Etiqueta del ROI
             cv2.putText(frame, "ROI ACTIVO", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+        else:
+            # DEBUG: Si no hay polígono
+            if user_data.get_count() % 30 == 0:
+                print(f"🔍 NO HAY POLÍGONO CARGADO para dibujar")
         
         # Mostrar contadores optimizados
         cv2.putText(frame, f"ROI Detections: {roi_detection_count}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
