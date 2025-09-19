@@ -4,6 +4,16 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+
+venv_hailo_rpi_examples/
+resources/
+hailo_temp_resources/
+resources
+
+
+
+
+
 # C extensions
 *.so
 
