@@ -9,6 +9,8 @@ Instrucciones:
 """
 import cv2
 import json
+import numpy as np
+import os
 
 # Configuración RTSP
 RTSP_URL = "rtsp://192.168.1.77:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif"
@@ -87,8 +89,6 @@ def save_config():
 
 def main():
     global frame_template, mode
-    import numpy as np
-    import os
     
     # Configurar OpenCV para evitar problemas de display en Raspberry Pi
     os.environ['QT_QPA_PLATFORM'] = 'xcb'
