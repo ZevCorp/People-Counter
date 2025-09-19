@@ -12,6 +12,51 @@ from hailo_apps.hailo_app_python.core.gstreamer.gstreamer_app import app_callbac
 from hailo_apps.hailo_app_python.apps.detection.detection_pipeline import GStreamerDetectionApp
 
 # -----------------------------------------------------------------------------------------------
+# Custom RTSP Detection App - Contador de Personas
+# -----------------------------------------------------------------------------------------------
+class RTSPGStreamerDetectionApp(GStreamerDetectionApp):
+    def __init__(self, app_callback, user_data, rtsp_url):
+        super().__init__(app_callback, user_data)
+        self.rtsp_url = rtsp_url
+        print(f"🎯 Configurando pipeline RTSP personalizado para: {rtsp_url}")
+    
+    def get_pipeline_string(self):
+        """
+        Custom pipeline que usa rtspsrc en lugar de filesrc para RTSP streams
+        """
+        # Construcción del pipeline personalizado para RTSP
+        rtsp_source = f"rtspsrc location=\"{self.rtsp_url}\" protocols=tcp ! decodebin"
+        
+        # Usar los mismos pipelines de la clase padre para el resto del procesamiento
+        parent_pipeline = super().get_pipeline_string()
+        
+        # Reemplazar la parte de filesrc con nuestro rtspsrc
+        # Encontrar donde termina la fuente original
+        source_end = parent_pipeline.find('caps="video/x-raw, framerate=30/1"')
+        if source_end != -1:
+            # Tomar solo la parte después de la fuente original
+            rest_of_pipeline = parent_pipeline[source_end + len('caps="video/x-raw, framerate=30/1"'):]
+            
+            # Construir el pipeline completo con RTSP
+            custom_pipeline = (
+                f'{rtsp_source} ! '
+                f'queue name=source_queue_decode leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
+                f'videoscale name=source_videoscale n-threads=2 ! '
+                f'queue name=source_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 ! '
+                f'videoconvert n-threads=3 name=source_convert qos=false ! '
+                f'video/x-raw, pixel-aspect-ratio=1/1, format=RGB, width=1280, height=720 ! '
+                f'videorate name=source_videorate ! '
+                f'capsfilter name=source_fps_caps caps="video/x-raw, framerate=30/1" '
+                f'{rest_of_pipeline}'
+            )
+            
+            print("🔧 Pipeline RTSP configurado correctamente")
+            return custom_pipeline
+        else:
+            print("⚠️  Fallback al pipeline original")
+            return parent_pipeline
+
+# -----------------------------------------------------------------------------------------------
 # User-defined class to be used in the callback function
 # -----------------------------------------------------------------------------------------------
 # Inheritance from the app_callback_class
@@ -89,14 +134,17 @@ if __name__ == "__main__":
     # Hardcoded RTSP URL for people counter
     rtsp_url = "rtsp://192.168.1.77:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif"
     
-    # Override sys.argv to force RTSP input and enable frame usage
+    # Configure sys.argv for our custom RTSP app
     import sys
-    sys.argv = [sys.argv[0], "--input", rtsp_url, "--use-frame", "--show-fps"]
+    sys.argv = [sys.argv[0], "--use-frame", "--show-fps"]
     
     print(f"🎥 Conectando a cámara RTSP: {rtsp_url}")
     print("📊 Sistema de conteo de personas iniciando...")
+    print("🚀 Usando pipeline RTSP personalizado...")
     
     # Create an instance of the user app callback class
     user_data = user_app_callback_class()
-    app = GStreamerDetectionApp(app_callback, user_data)
+    
+    # Use our custom RTSP Detection App instead of the standard one
+    app = RTSPGStreamerDetectionApp(app_callback, user_data, rtsp_url)
     app.run()
