@@ -121,6 +121,8 @@ class user_app_callback_class(app_callback_class):
     def draw_polygon(self, frame):
         """Dibujar el polígono de delimitación en el frame"""
         if len(self.detection_polygon) > 0:
+            frame_height, frame_width = frame.shape[:2]
+            
             # Debug: Imprimir información del polígono
             if hasattr(self, '_debug_count'):
                 self._debug_count += 1
@@ -130,18 +132,44 @@ class user_app_callback_class(app_callback_class):
             if self._debug_count <= 2:  # Solo los primeros 2 intentos
                 print(f"🎨 Dibujando polígono: frame shape {frame.shape}, polígono: {len(self.detection_polygon)} puntos")
                 print(f"📍 Primeros puntos: {self.detection_polygon[:3].tolist()}")
+                print(f"📏 Frame: {frame_width}x{frame_height}")
+                
+                # Verificar si las coordenadas están dentro del frame
+                for i, point in enumerate(self.detection_polygon[:3]):
+                    x, y = point
+                    in_bounds = 0 <= x < frame_width and 0 <= y < frame_height
+                    print(f"🔍 Punto {i+1}: [{x}, {y}] - {'✅ Visible' if in_bounds else '❌ FUERA DEL FRAME'}")
             
-            # Dibujar polígono con línea verde gruesa y visible
+            # 🎯 ESTRATEGIA: Dibujar polígono original Y una versión de prueba visible
+            
+            # 1. Dibujar polígono original (puede estar fuera)
             cv2.polylines(frame, [self.detection_polygon], True, (0, 255, 0), 3)
             
-            # Agregar texto informativo más visible
+            # 2. Dibujar polígono de prueba SIEMPRE VISIBLE (centro de la pantalla)
+            test_polygon = np.array([
+                [frame_width//4, frame_height//4],        # Esquina superior izquierda
+                [3*frame_width//4, frame_height//4],      # Esquina superior derecha  
+                [3*frame_width//4, 3*frame_height//4],    # Esquina inferior derecha
+                [frame_width//4, 3*frame_height//4]       # Esquina inferior izquierda
+            ], dtype=np.int32)
+            
+            cv2.polylines(frame, [test_polygon], True, (255, 0, 0), 5)  # AZUL GRUESO
+            
+            # 3. Agregar texto informativo más visible
             cv2.putText(frame, f"AREA DELIMITADA ({len(self.detection_polygon)} puntos)", 
-                       (10, frame.shape[0] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 3)
+                       (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 3)
                        
-            # Dibujar un punto en la primera coordenada para verificar visibilidad
+            cv2.putText(frame, f"POLIGONO DE PRUEBA (AZUL)", 
+                       (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 3)
+                       
+            # 4. Dibujar puntos en las esquinas para verificar visibilidad
             if len(self.detection_polygon) > 0:
                 first_point = tuple(self.detection_polygon[0])
-                cv2.circle(frame, first_point, 8, (0, 255, 255), -1)  # Círculo amarillo
+                cv2.circle(frame, first_point, 8, (0, 255, 255), -1)  # Círculo amarillo original
+                
+            # Círculos en las esquinas del polígono de prueba
+            for point in test_polygon:
+                cv2.circle(frame, tuple(point), 10, (255, 255, 0), -1)  # Círculos cian
 
     def new_function(self):  # New function example
         return "The meaning of life is: "
