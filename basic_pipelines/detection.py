@@ -89,6 +89,10 @@ class user_app_callback_class(app_callback_class):
         self.new_variable = 42  # New variable example
         self.detection_polygon = []  # Polígono de delimitación
         self.load_detection_areas()
+        
+        # 🔧 FORZAR use_frame para que funcione el polígono
+        self.use_frame = True
+        print(f"🖼️ Forzando use_frame = {self.use_frame}")
 
     def load_detection_areas(self):
         """Cargar el polígono de detección desde counter_areas.json"""
@@ -117,12 +121,27 @@ class user_app_callback_class(app_callback_class):
     def draw_polygon(self, frame):
         """Dibujar el polígono de delimitación en el frame"""
         if len(self.detection_polygon) > 0:
-            # Dibujar polígono con línea verde semi-transparente
-            cv2.polylines(frame, [self.detection_polygon], True, (0, 255, 0), 2)
+            # Debug: Imprimir información del polígono
+            if hasattr(self, '_debug_count'):
+                self._debug_count += 1
+            else:
+                self._debug_count = 1
+                
+            if self._debug_count <= 2:  # Solo los primeros 2 intentos
+                print(f"🎨 Dibujando polígono: frame shape {frame.shape}, polígono: {len(self.detection_polygon)} puntos")
+                print(f"📍 Primeros puntos: {self.detection_polygon[:3].tolist()}")
             
-            # Agregar texto informativo
-            cv2.putText(frame, f"Area Delimitada ({len(self.detection_polygon)} puntos)", 
-                       (10, frame.shape[0] - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            # Dibujar polígono con línea verde gruesa y visible
+            cv2.polylines(frame, [self.detection_polygon], True, (0, 255, 0), 3)
+            
+            # Agregar texto informativo más visible
+            cv2.putText(frame, f"AREA DELIMITADA ({len(self.detection_polygon)} puntos)", 
+                       (10, frame.shape[0] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 3)
+                       
+            # Dibujar un punto en la primera coordenada para verificar visibilidad
+            if len(self.detection_polygon) > 0:
+                first_point = tuple(self.detection_polygon[0])
+                cv2.circle(frame, first_point, 8, (0, 255, 255), -1)  # Círculo amarillo
 
     def new_function(self):  # New function example
         return "The meaning of life is: "
@@ -151,6 +170,10 @@ def app_callback(pad, info, user_data):
     if user_data.use_frame and format is not None and width is not None and height is not None:
         # Get video frame
         frame = get_numpy_from_buffer(buffer, format, width, height)
+        # Debug: Verificar que el frame se obtiene correctamente
+        if user_data.get_count() <= 3:  # Solo los primeros 3 frames
+            print(f"🖼️  Frame obtenido: {frame.shape if frame is not None else 'None'}, use_frame: {user_data.use_frame}")
+            print(f"📐 Polígono tiene {len(user_data.detection_polygon)} puntos")
 
     # Get the detections from the buffer
     roi = hailo.get_roi_from_buffer(buffer)
@@ -171,6 +194,10 @@ def app_callback(pad, info, user_data):
             string_to_print += (f"Detection: ID: {track_id} Label: {label} Confidence: {confidence:.2f}\n")
             detection_count += 1
     if user_data.use_frame:
+        # Debug: Confirmar que estamos procesando el frame
+        if user_data.get_count() <= 3:
+            print(f"✅ Procesando frame {user_data.get_count()} para dibujar polígono")
+            
         # Note: using imshow will not work here, as the callback function is not running in the main thread
         # Let's print the detection count to the frame
         cv2.putText(frame, f"Detections: {detection_count}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
