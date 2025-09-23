@@ -29,13 +29,11 @@ class RTSPGStreamerDetectionApp(GStreamerDetectionApp):
         """
         print(f"🔧 Construyendo pipeline RTSP personalizado...")
         
-        # Obtener el pipeline padre completo
-        parent_pipeline = super().get_pipeline_string()
-        print(f"🔍 Pipeline padre obtenido: {parent_pipeline[:100]}...")
+        # 🔥 NO USAR PIPELINE PADRE - construir desde cero para evitar conflictos
+        print("🚫 IGNORANDO pipeline padre para evitar conflicto MP4/RTSP")
         
-        # Construir pipeline RTSP desde cero, manteniendo la estructura del padre
-        # pero reemplazando la fuente
-        rtsp_pipeline = (
+        # Construir pipeline RTSP completo desde cero
+        complete_rtsp_pipeline = (
             f'rtspsrc location="{self.rtsp_url}" protocols=tcp latency=300 '
             f'! rtph264depay '
             f'! h264parse '
@@ -47,37 +45,39 @@ class RTSPGStreamerDetectionApp(GStreamerDetectionApp):
             f'! video/x-raw, pixel-aspect-ratio=1/1, format=RGB, width=1280, height=720 '
             f'! videorate name=source_videorate '
             f'! capsfilter name=source_fps_caps caps="video/x-raw, framerate=30/1" '
+            f'! queue name=inference_wrapper_input_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! hailocropper name=inference_wrapper_crop so-path=/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/cropping_algorithms/libwhole_buffer.so function-name=create_crops use-letterbox=true resize-method=inter-area internal-offset=true '
+            f'hailoaggregator name=inference_wrapper_agg '
+            f'inference_wrapper_crop. ! queue name=inference_wrapper_bypass_q leaky=no max-size-buffers=20 max-size-bytes=0 max-size-time=0 ! inference_wrapper_agg.sink_0 '
+            f'inference_wrapper_crop. ! queue name=inference_scale_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! videoscale name=inference_videoscale n-threads=2 qos=false '
+            f'! queue name=inference_convert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! video/x-raw, pixel-aspect-ratio=1/1 '
+            f'! videoconvert name=inference_videoconvert n-threads=2 '
+            f'! queue name=inference_hailonet_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! hailonet name=inference_hailonet hef-path=/usr/local/hailo/resources/models/hailo8l/yolov8s.hef batch-size=2 vdevice-group-id=1 nms-score-threshold=0.3 nms-iou-threshold=0.45 output-format-type=HAILO_FORMAT_TYPE_FLOAT32 force-writable=true '
+            f'! queue name=inference_hailofilter_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! hailofilter name=inference_hailofilter so-path=/usr/local/hailo/resources/so/libyolo_hailortpp_postprocess.so function-name=filter_letterbox qos=false '
+            f'! queue name=inference_output_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! inference_wrapper_agg.sink_1 '
+            f'inference_wrapper_agg. ! queue name=inference_wrapper_output_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! hailotracker name=hailo_tracker class-id=1 kalman-dist-thr=0.8 iou-thr=0.9 init-iou-thr=0.7 keep-new-frames=2 keep-tracked-frames=15 keep-lost-frames=2 keep-past-metadata=False qos=False '
+            f'! queue name=hailo_tracker_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! queue name=identity_callback_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! identity name=identity_callback '
+            f'! queue name=hailo_display_overlay_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! hailooverlay name=hailo_display_overlay '
+            f'! queue name=hailo_display_videoconvert_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! videoconvert name=hailo_display_videoconvert n-threads=2 qos=false '
+            f'! queue name=hailo_display_q leaky=no max-size-buffers=3 max-size-bytes=0 max-size-time=0 '
+            f'! fpsdisplaysink name=hailo_display video-sink=autovideosink sync=true text-overlay=True signal-fps-measurements=true'
         )
         
-        # Encontrar donde empieza la parte de inferencia en el pipeline padre
-        inference_start = parent_pipeline.find('! queue name=inference_wrapper_input_q')
+        print("✅ Pipeline RTSP COMPLETO configurado desde cero")
+        print(f"🎯 Pipeline: rtspsrc location='{self.rtsp_url}'...")
+        print("🚫 NO hay referencias a filesrc/MP4")
         
-        if inference_start != -1:
-            # Tomar la parte de inferencia del pipeline padre
-            inference_pipeline = parent_pipeline[inference_start:]
-            
-            # Combinar RTSP + inferencia
-            complete_pipeline = rtsp_pipeline + inference_pipeline
-            
-            print("✅ Pipeline RTSP configurado exitosamente")
-            print(f"🎯 Pipeline completo: {complete_pipeline[:150]}...")
-            return complete_pipeline
-        else:
-            print("⚠️  No se pudo encontrar punto de inferencia, usando fallback")
-            print("🔧 Intentando método alternativo...")
-            
-            # Método alternativo: reemplazar directamente la fuente
-            if 'filesrc' in parent_pipeline:
-                # Encontrar el final de la sección de fuente
-                decode_end = parent_pipeline.find('! queue name=source_scale_q')
-                if decode_end != -1:
-                    rest_pipeline = parent_pipeline[decode_end:]
-                    alternative_pipeline = rtsp_pipeline + rest_pipeline
-                    print("✅ Pipeline alternativo RTSP configurado")
-                    return alternative_pipeline
-            
-            print("❌ Fallback al pipeline original")
-            return parent_pipeline
+        return complete_rtsp_pipeline
 
 # -----------------------------------------------------------------------------------------------
 # User-defined class to be used in the callback function
