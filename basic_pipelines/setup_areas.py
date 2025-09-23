@@ -140,9 +140,16 @@ def main():
             print("❌ Error leyendo frame")
             break
         
-        # Redimensionar para mejor visualización
-        frame = cv2.resize(frame, (1280, 720))
+        # Redimensionar para mejor visualización - DEBE COINCIDIR con detection.py
+        # detection.py usa: frame shape (720, 1280, 3) = height=720, width=1280
+        frame = cv2.resize(frame, (1280, 720))  # width=1280, height=720
         frame_template = frame.copy()
+        
+        # Debug: Mostrar resolución real
+        if ret:  # Solo en el primer frame
+            print(f"📺 Frame original: {frame.shape}")
+            print(f"📺 Frame redimensionado: {frame.shape}")
+            ret = False  # Para que solo imprima una vez
         
         # Dibujar áreas
         frame_with_areas = draw_areas(frame)

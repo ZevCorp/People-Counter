@@ -147,13 +147,16 @@ class user_app_callback_class(app_callback_class):
             
             # 2. Dibujar polígono de prueba SIEMPRE VISIBLE (centro de la pantalla)
             test_polygon = np.array([
-                [frame_width//4, frame_height//4],        # Esquina superior izquierda
-                [3*frame_width//4, frame_height//4],      # Esquina superior derecha  
-                [3*frame_width//4, 3*frame_height//4],    # Esquina inferior derecha
-                [frame_width//4, 3*frame_height//4]       # Esquina inferior izquierda
+                [200, 150],     # Esquina superior izquierda
+                [800, 150],     # Esquina superior derecha  
+                [800, 550],     # Esquina inferior derecha
+                [200, 550]      # Esquina inferior izquierda
             ], dtype=np.int32)
             
-            cv2.polylines(frame, [test_polygon], True, (255, 0, 0), 5)  # AZUL GRUESO
+            cv2.polylines(frame, [test_polygon], True, (255, 0, 0), 8)  # AZUL MUY GRUESO
+            
+            # 2b. Dibujar rectángulo de prueba MUY VISIBLE
+            cv2.rectangle(frame, (50, 50), (300, 200), (0, 0, 255), 10)  # ROJO GRANDE
             
             # 3. Agregar texto informativo más visible
             cv2.putText(frame, f"AREA DELIMITADA ({len(self.detection_polygon)} puntos)", 
