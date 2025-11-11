@@ -11,14 +11,10 @@ import time
 import hailo
 import supervision as sv
 from pathlib import Path
-from hailo_rpi_common import (
-  get_default_parser,
-  QUEUE,
-  get_caps_from_pad,
-  get_numpy_from_buffer,
-  GStreamerApp,
-  app_callback_class,
-)
+
+# Imports actualizados compatibles con la versión nueva
+from hailo_apps.hailo_app_python.core.common.buffer_utils import get_caps_from_pad, get_numpy_from_buffer
+from hailo_apps.hailo_app_python.core.gstreamer.gstreamer_app import app_callback_class, GStreamerApp
 # -----------------------------------------------------------------------------------------------
 # User-defined class to be used in the callback function
 # -----------------------------------------------------------------------------------------------
