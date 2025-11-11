@@ -309,6 +309,17 @@ class GStreamerDetectionApp(GStreamerApp):
     )
     print(pipeline_string)
     return pipeline_string
+    # -----------------------------------------------------------------------------------------------
+# Argument Parser
+# -----------------------------------------------------------------------------------------------
+def get_default_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", default="rpi", choices=["rpi", "usb", "rtsp"], help="Input source")
+    parser.add_argument("--use-frame", action="store_true", help="Use frame")
+    parser.add_argument("--show-fps", action="store_true", help="Show FPS")
+    parser.add_argument("--disable-sync", action="store_true", help="Disable sync")
+    parser.add_argument("--dump-dot", action="store_true", help="Dump dot file")
+    return parser
 if __name__ == "__main__":
   # Create an instance of the user app callback class
   user_data = user_app_callback_class()
