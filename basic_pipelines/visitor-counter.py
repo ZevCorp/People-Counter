@@ -142,55 +142,61 @@ class RTSPGStreamerDetectionApp(GStreamerApp):
 
   def get_pipeline_string(self):
     """
-    Custom pipeline that uses rtspsrc instead of filesrc for RTSP streams
+    Custom pipeline that uses rtspsrc - COMPATIBLE con detection.py exitoso
     """
     print(f"🔧 Construyendo pipeline RTSP personalizado...")
     
-    # Build complete RTSP pipeline from scratch
+    # Pipeline RTSP basado en detection.py que SÍ FUNCIONA
     complete_rtsp_pipeline = (
-      f'rtspsrc location="{self.rtsp_url}" protocols=tcp latency=300 '
-      f'! rtph264depay '
-      f'! h264parse '
-      f'! avdec_h264 '
-      + QUEUE("queue_src_decode")
-      + '! videoscale name=source_videoscale n-threads=2 '
-      + QUEUE("queue_src_convert")
-      + '! videoconvert n-threads=3 name=src_convert qos=false '
-      + f'! video/x-raw, pixel-aspect-ratio=1/1, format={self.network_format}, width={self.network_width}, height={self.network_height} '
-      + '! videorate name=source_videorate '
-      + f'! capsfilter name=source_fps_caps caps="video/x-raw, framerate=30/1" '
-      + QUEUE("queue_inference_input")
-      + '! hailomuxer name=hmux '
-      + QUEUE("bypass_queue", max_size_buffers=20)
-      + '! hmux.sink_0 '
-      + QUEUE("queue_hailonet")
-      + '! videoconvert n-threads=3 '
-      + f'! hailonet hef-path={self.hef_path} batch-size={self.batch_size} {self.thresholds_str} force-writable=true '
-      + QUEUE("queue_hailofilter")
-      + f'! hailofilter so-path={self.default_postprocess_so} {self.labels_config} qos=false '
-      + QUEUE("queue_hailotracker")
-      + '! hailotracker keep-tracked-frames=3 keep-new-frames=3 keep-lost-frames=3 '
-      + QUEUE("queue_hmuc")
-      + '! hmux.sink_1 '
-      + '! hmux. '
-      + QUEUE("queue_hailo_python")
-      + QUEUE("queue_user_callback")
-      + '! identity name=identity_callback '
-      + QUEUE("queue_hailooverlay")
-      + '! hailooverlay '
-      + QUEUE("queue_videoconvert")
-      + '! videoconvert n-threads=3 qos=false '
-      + QUEUE("queue_textoverlay_top")
-      + '! textoverlay name=hailo_text_top text="" valignment=top halignment=center '
-      + QUEUE("queue_textoverlay_bottom")
-      + '! textoverlay name=hailo_text_bottom text="" valignment=bottom halignment=center '
-      + QUEUE("queue_hailo_display")
-      + f'! fpsdisplaysink video-sink={self.video_sink} name=hailo_display sync={self.sync} text-overlay={self.options_menu.show_fps} signal-fps-measurements=true '
+        f'rtspsrc location="{self.rtsp_url}" protocols=tcp latency=300 '
+        f'! rtph264depay '
+        f'! h264parse '
+        f'! avdec_h264 '
+        + QUEUE("source_queue_decode", leaky="no", max_size_buffers=3)
+        + '! videoscale name=source_videoscale n-threads=2 '
+        + QUEUE("source_convert_q", leaky="no", max_size_buffers=3)
+        + '! videoconvert n-threads=3 name=source_convert qos=false '
+        + f'! video/x-raw, pixel-aspect-ratio=1/1, format={self.network_format}, width={self.network_width}, height={self.network_height} '
+        + '! videorate name=source_videorate '
+        + f'! capsfilter name=source_fps_caps caps="video/x-raw, framerate=30/1" '
+        + QUEUE("inference_wrapper_input_q", leaky="no", max_size_buffers=3)
+        + '! hailocropper name=inference_wrapper_crop so-path=/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes/cropping_algorithms/libwhole_buffer.so function-name=create_crops use-letterbox=true resize-method=inter-area internal-offset=true '
+        + 'hailoaggregator name=inference_wrapper_agg '
+        + 'inference_wrapper_crop. '
+        + QUEUE("inference_wrapper_bypass_q", leaky="no", max_size_buffers=20)
+        + '! inference_wrapper_agg.sink_0 '
+        + 'inference_wrapper_crop. '
+        + QUEUE("inference_scale_q", leaky="no", max_size_buffers=3)
+        + '! videoscale name=inference_videoscale n-threads=2 qos=false '
+        + QUEUE("inference_convert_q", leaky="no", max_size_buffers=3)
+        + '! video/x-raw, pixel-aspect-ratio=1/1 '
+        + '! videoconvert name=inference_videoconvert n-threads=2 '
+        + QUEUE("inference_hailonet_q", leaky="no", max_size_buffers=3)
+        + f'! hailonet name=inference_hailonet hef-path={self.hef_path} batch-size={self.batch_size} vdevice-group-id=1 {self.thresholds_str} force-writable=true '
+        + QUEUE("inference_hailofilter_q", leaky="no", max_size_buffers=3)
+        + f'! hailofilter name=inference_hailofilter so-path={self.default_postprocess_so} {self.labels_config} qos=false '
+        + QUEUE("inference_output_q", leaky="no", max_size_buffers=3)
+        + '! inference_wrapper_agg.sink_1 '
+        + 'inference_wrapper_agg. '
+        + QUEUE("inference_wrapper_output_q", leaky="no", max_size_buffers=3)
+        + '! hailotracker name=hailo_tracker class-id=1 kalman-dist-thr=0.8 iou-thr=0.9 init-iou-thr=0.7 keep-new-frames=2 keep-tracked-frames=15 keep-lost-frames=2 keep-past-metadata=False qos=False '
+        + QUEUE("hailo_tracker_q", leaky="no", max_size_buffers=3)
+        + QUEUE("hailo_display_overlay_q", leaky="no", max_size_buffers=3)
+        + '! hailooverlay name=hailo_display_overlay '
+        + QUEUE("identity_callback_q", leaky="no", max_size_buffers=3)
+        + '! identity name=identity_callback '
+        + QUEUE("hailo_display_videoconvert_q", leaky="no", max_size_buffers=3)
+        + '! videoconvert name=hailo_display_videoconvert n-threads=2 qos=false '
+        + QUEUE("queue_textoverlay_top")
+        + '! textoverlay name=hailo_text_top text="" valignment=top halignment=center '
+        + QUEUE("queue_textoverlay_bottom")
+        + '! textoverlay name=hailo_text_bottom text="" valignment=bottom halignment=center '
+        + QUEUE("hailo_display_q", leaky="no", max_size_buffers=3)
+        + f'! fpsdisplaysink name=hailo_display video-sink={self.video_sink} sync={self.sync} text-overlay={self.options_menu.show_fps} signal-fps-measurements=true'
     )
     
-    print("✅ Pipeline RTSP COMPLETO configurado desde cero")
-    print(f"🎯 Pipeline: rtspsrc location='{self.rtsp_url}'...")
-    print("🚫 NO hay referencias a filesrc/MP4")
+    print("✅ Pipeline RTSP COMPLETO configurado (compatible con detection.py)")
+    print(f"🎯 Usando: rtspsrc location='{self.rtsp_url}'")
     
     return complete_rtsp_pipeline
 
