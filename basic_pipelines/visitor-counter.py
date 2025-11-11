@@ -326,6 +326,7 @@ if __name__ == "__main__":
   START = sv.Point(340, 0)
   END = sv.Point(340, 640)
   line_zone = sv.LineZone(start=START, end=END, triggering_anchors=(sv.Position.CENTER,sv.Position.TOP_CENTER, sv.Position.BOTTOM_CENTER))
+  
   parser = get_default_parser()
   # Add additional arguments here
   parser.add_argument(
@@ -349,14 +350,28 @@ if __name__ == "__main__":
     default=None,
     help="RTSP URL for camera stream",
   )
+  
+  # NO PARSEAR TODAVÍA - pasar el parser directamente
+  # Use RTSP app if rtsp_url is provided, otherwise use standard app
   args = parser.parse_args()
   
-  # Use RTSP app if rtsp_url is provided, otherwise use standard app
   if args.rtsp_url:
     print(f"🎥 Usando RTSP: {args.rtsp_url}")
-    app = RTSPGStreamerDetectionApp(args, user_data, args.rtsp_url)
+    # Crear un nuevo parser para pasar a la clase
+    parser_for_app = get_default_parser()
+    parser_for_app.add_argument("--network", default="yolov6n", choices=['yolov6n', 'yolov8s', 'yolox_s_leaky'])
+    parser_for_app.add_argument("--hef-path", default=None)
+    parser_for_app.add_argument("--labels-json", default=None)
+    parser_for_app.add_argument("--rtsp-url", default=None)
+    
+    app = RTSPGStreamerDetectionApp(parser_for_app, user_data, args.rtsp_url)
   else:
     print("📹 Usando fuente estándar (rpi/usb/archivo)")
-    app = GStreamerDetectionApp(args, user_data)
+    parser_for_app = get_default_parser()
+    parser_for_app.add_argument("--network", default="yolov6n", choices=['yolov6n', 'yolov8s', 'yolox_s_leaky'])
+    parser_for_app.add_argument("--hef-path", default=None)
+    parser_for_app.add_argument("--labels-json", default=None)
+    
+    app = GStreamerDetectionApp(parser_for_app, user_data)
   
   app.run()
