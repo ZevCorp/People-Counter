@@ -3,8 +3,7 @@
 
 param(
     [string]$RtspUrl = "rtsp://192.168.1.77:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif",
-    [string]$Network = "yolov6n",
-    [string]$LabelsJson = "../resources/visitor-counter.json"
+    [string]$Network = "yolov6n"
 )
 
 Write-Host "╔════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
@@ -13,16 +12,16 @@ Write-Host "╚═════════════════════�
 Write-Host ""
 Write-Host "🎥 URL RTSP: $RtspUrl" -ForegroundColor Green
 Write-Host "📊 Modelo: $Network" -ForegroundColor Green
-Write-Host "📝 Etiquetas: $LabelsJson" -ForegroundColor Green
+Write-Host "📝 Etiquetas: ../visitor-counter.json (automático)" -ForegroundColor Green
 Write-Host ""
 Write-Host "Iniciando pipeline..." -ForegroundColor Yellow
 Write-Host ""
 
 # Ejecutar el contador de visitantes con RTSP
+# Nota: --labels-json se carga automáticamente desde ../visitor-counter.json
 python3 ./basic_pipelines/visitor-counter.py `
   --input rtsp `
   --rtsp-url $RtspUrl `
-  --labels-json $LabelsJson `
   --network $Network `
   --use-frame `
   --show-fps

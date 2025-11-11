@@ -18,16 +18,16 @@ echo -e "${BLUE}╚════════════════════�
 echo ""
 echo -e "${GREEN}🎥 URL RTSP:${NC} $RTSP_URL"
 echo -e "${GREEN}📊 Modelo:${NC} yolov6n (por defecto)"
-echo -e "${GREEN}📝 Etiquetas:${NC} ../resources/visitor-counter.json"
+echo -e "${GREEN}📝 Etiquetas:${NC} ../visitor-counter.json (automático)"
 echo ""
 echo -e "${YELLOW}Iniciando pipeline...${NC}"
 echo ""
 
 # Ejecutar el contador de visitantes con RTSP
+# Nota: --labels-json se carga automáticamente desde ../visitor-counter.json
 python3 ./basic_pipelines/visitor-counter.py \
   --input rtsp \
   --rtsp-url "$RTSP_URL" \
-  --labels-json ../resources/visitor-counter.json \
   --use-frame \
   --show-fps
 
