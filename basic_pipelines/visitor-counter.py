@@ -310,14 +310,9 @@ class GStreamerDetectionApp(GStreamerApp):
 if __name__ == "__main__":
   # Create an instance of the user app callback class
   user_data = user_app_callback_class()
-  # Línea de detección VERTICAL: personas entran desde arriba hacia abajo
-  # START (arriba) = (x=340, y=0) -> END (abajo) = (x=340, y=640)
-  # Esto crea una línea vertical en el centro de la pantalla (640x640)
   START = sv.Point(340, 0)
   END = sv.Point(340, 640)
-  # Anclajes: detecta personas en el centro, arriba-centro y abajo-centro
-  # Esto asegura que se cuenten personas que cruzan la línea en cualquier punto
-  line_zone = sv.LineZone(start=START, end=END, triggering_anchors=(sv.Position.CENTER, sv.Position.TOP_CENTER, sv.Position.BOTTOM_CENTER))
+  line_zone = sv.LineZone(start=START, end=END, triggering_anchors=(sv.Position.CENTER,sv.Position.TOP_CENTER, sv.Position.BOTTOM_CENTER))
   parser = get_default_parser()
   # Add additional arguments here
   parser.add_argument(
@@ -333,7 +328,7 @@ if __name__ == "__main__":
   )
   parser.add_argument(
     "--labels-json",
-    default="../visitor-counter.json",
+    default=None,
     help="Path to costume labels JSON file",
   )
   parser.add_argument(

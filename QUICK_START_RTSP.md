@@ -10,15 +10,14 @@ python3 ./basic_pipelines/detection.py --input rtsp --rtsp-url "rtsp://192.168.1
 
 ### En Linux/Raspberry Pi:
 ```bash
-cd /ruta/al/hailo-rpi5-examples/basic_pipelines
-python3 visitor-counter.py \
+cd /ruta/al/hailo-rpi5-examples
+python3 ./basic_pipelines/visitor-counter.py \
   --input rtsp \
   --rtsp-url "rtsp://192.168.1.77:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif" \
+  --labels-json ../resources/visitor-counter.json \
   --use-frame \
   --show-fps
 ```
-
-**Nota:** El archivo `visitor-counter.json` se carga automáticamente desde `../visitor-counter.json` (carpeta raíz)
 
 O usar el script:
 ```bash
@@ -28,15 +27,14 @@ chmod +x run_visitor_counter_rtsp.sh
 
 ### En Windows (PowerShell):
 ```powershell
-cd "C:\Users\Chriz\Desktop\hailo count\hailo-rpi5-examples\basic_pipelines"
-python3 visitor-counter.py `
+cd "C:\Users\Chriz\Desktop\hailo count\hailo-rpi5-examples"
+python3 ./basic_pipelines/visitor-counter.py `
   --input rtsp `
   --rtsp-url "rtsp://192.168.1.77:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif" `
+  --labels-json ../resources/visitor-counter.json `
   --use-frame `
   --show-fps
 ```
-
-**Nota:** El archivo `visitor-counter.json` se carga automáticamente desde `../visitor-counter.json` (carpeta raíz)
 
 O usar el script:
 ```powershell
@@ -63,18 +61,7 @@ Deberías ver:
    - Permite especificar la URL de la cámara RTSP
    - Opcional (mantiene compatibilidad con `--input rpi/usb/file`)
 
-3. **Ruta por defecto para `--labels-json`**
-   - Valor por defecto: `../visitor-counter.json`
-   - Busca automáticamente el archivo en la carpeta raíz
-   - No es necesario especificar la ruta cada vez
-
-4. **Línea de detección VERTICAL**
-   - Configurada para detectar personas que entran desde arriba hacia abajo
-   - START = (340, 0) - punto superior
-   - END = (340, 640) - punto inferior
-   - Anclajes: CENTER, TOP_CENTER, BOTTOM_CENTER
-
-5. **Lógica de selección de clase**
+3. **Lógica de selección de clase**
    - Si se proporciona `--rtsp-url`, usa `RTSPGStreamerDetectionApp`
    - Si no, usa `GStreamerDetectionApp` (comportamiento original)
 
