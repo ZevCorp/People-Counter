@@ -85,12 +85,12 @@ def app_callback(pad, info, user_data):
 # Custom RTSP Detection App for Visitor Counter
 # -----------------------------------------------------------------------------------------------
 class RTSPGStreamerDetectionApp(GStreamerApp):
-  def __init__(self, args, user_data, rtsp_url):
+  def __init__(self, parser, user_data, rtsp_url):
     # Assign rtsp_url BEFORE calling parent constructor
     # because parent calls get_pipeline_string() during initialization
     self.rtsp_url = rtsp_url
     print(f"🎯 Configurando pipeline RTSP personalizado para: {rtsp_url}")
-    super().__init__(args, user_data)
+    super().__init__(parser, user_data)
     # Additional initialization code can be added here
     # Set Hailo parameters these parameters should be set based on the model used
     self.batch_size = 1
@@ -351,15 +351,26 @@ if __name__ == "__main__":
     help="RTSP URL for camera stream",
   )
   
-  # Parse arguments FIRST
+  # Parse arguments to check if RTSP is being used
   args = parser.parse_args()
   
   # Use RTSP app if rtsp_url is provided, otherwise use standard app
   if args.rtsp_url:
     print(f"🎥 Usando RTSP: {args.rtsp_url}")
-    app = RTSPGStreamerDetectionApp(args, user_data, args.rtsp_url)
+    # Rebuild parser for RTSP app (GStreamerApp expects unparsed parser)
+    parser_rtsp = get_default_parser()
+    parser_rtsp.add_argument("--network", default="yolov6n", choices=['yolov6n', 'yolov8s', 'yolox_s_leaky'])
+    parser_rtsp.add_argument("--hef-path", default=None)
+    parser_rtsp.add_argument("--labels-json", default=None)
+    parser_rtsp.add_argument("--rtsp-url", default=None)
+    app = RTSPGStreamerDetectionApp(parser_rtsp, user_data, args.rtsp_url)
   else:
     print("📹 Usando fuente estándar (rpi/usb/archivo)")
-    app = GStreamerDetectionApp(args, user_data)
+    # Rebuild parser for standard app
+    parser_std = get_default_parser()
+    parser_std.add_argument("--network", default="yolov6n", choices=['yolov6n', 'yolov8s', 'yolox_s_leaky'])
+    parser_std.add_argument("--hef-path", default=None)
+    parser_std.add_argument("--labels-json", default=None)
+    app = GStreamerDetectionApp(parser_std, user_data)
   
   app.run()
